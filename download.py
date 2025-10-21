@@ -36,6 +36,15 @@ OPTIONAL MATCH (a)-[cr:COUNTRY {reference_name: 'nro.delegated_stats'}]-(cc:Coun
 RETURN DISTINCT a.asn AS asn, COALESCE(pdbn.name, btn.name, ripen.name) AS name, cc.country_code AS country_code, cr.registry as rir
 """
 
+# RPKI and IRR status for routed prefixes
+CYPHER_QUERY = """
+MATCH (pfx:Prefix)-[crpki:CATEGORIZED {reference_name:'ihr.rov'}]-(tag_rpki:Tag)
+WHERE tag_rpki.label STARTS WITH 'RPKI'
+OPTIONAL MATCH (pfx:Prefix)-[cirr:CATEGORIZED {reference_name:'ihr.rov'}]-(tag_irr:Tag)
+WHERE  tag_irr.label STARTS WITH 'IRR' AND crpki.originasn_id = cirr.originasn_id
+RETURN pfx.prefix, crpki.originasn_id, tag_rpki.label, tag_irr.label
+"""
+
 # Output CSV file
 CSV_FILE_PATH = "iyp_query_results.csv"
 
