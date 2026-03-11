@@ -1,58 +1,14 @@
-from neo4j import GraphDatabase
+import argparse
 import csv
-
-# Neo4j connection details
-NEO4J_URI = "bolt://localhost:7687"  
-USERNAME = "neo4j"
-PASSWORD = "password"
-
-# All prefixes announced on BGP with corresponding ASN and Opaque IDs
-CYPHER_QUERY = """
-MATCH (a:AS)-[:ORIGINATE {reference_org: 'BGPKIT'}]-(p:BGPPrefix)
-OPTIONAL MATCH (a)-[:ASSIGNED]-(oid_as:OpaqueID)
-OPTIONAL MATCH (p)-[:ASSIGNED]-(oid_pfx:OpaqueID)
-RETURN DISTINCT a.asn, oid_as.id, p.prefix, oid_pfx.prefix
-"""
-
-# CAIDA AS relationship for IPv4
-CYPHER_QUERY = """
-MATCH (as_a:AS)-[link:PEERS_WITH {reference_name:'caida.as_relationships_v4'}]->(as_b:AS)
-RETURN DISTINCT as_a.asn, as_b.asn, link.rel;
-"""
-
-# CAIDA AS relationship for IPv4 in Japan
-CYPHER_QUERY_JP = """
-MATCH (:Country {country_code:'JP'})-[:COUNTRY {reference_name:'nro.delegated_stats'}]-(as_a:AS)-[link:PEERS_WITH {reference_name:'caida.as_relationships_v4'}]->(as_b:AS)-[:COUNTRY {reference_name:'nro.delegated_stats'}]-(:Country {country_code:'JP'})
-RETURN DISTINCT as_a.asn, as_b.asn, link.rel
-"""
-
-# AS names, registered country, and RIR
-CYPHER_QUERY = """
-MATCH (a:AS)
-OPTIONAL MATCH (a)-[:NAME {reference_org:'PeeringDB'}]->(pdbn:Name)
-OPTIONAL MATCH (a)-[:NAME {reference_org:'BGP.Tools'}]->(btn:Name)
-OPTIONAL MATCH (a)-[:NAME {reference_org:'RIPE NCC'}]->(ripen:Name)
-OPTIONAL MATCH (a)-[cr:COUNTRY {reference_name: 'nro.delegated_stats'}]-(cc:Country)
-RETURN DISTINCT a.asn AS asn, COALESCE(pdbn.name, btn.name, ripen.name) AS name, cc.country_code AS country_code, cr.registry as rir
-"""
-
-# RPKI and IRR status for routed prefixes
-CYPHER_QUERY = """
-MATCH (pfx:Prefix)-[crpki:CATEGORIZED {reference_name:'ihr.rov'}]-(tag_rpki:Tag)
-WHERE tag_rpki.label STARTS WITH 'RPKI'
-OPTIONAL MATCH (pfx:Prefix)-[cirr:CATEGORIZED {reference_name:'ihr.rov'}]-(tag_irr:Tag)
-WHERE  tag_irr.label STARTS WITH 'IRR' AND crpki.originasn_id = cirr.originasn_id
-RETURN pfx.prefix, crpki.originasn_id, tag_rpki.label, tag_irr.label
-"""
-
-# Output CSV file
-CSV_FILE_PATH = "iyp_query_results.csv"
+from neo4j import GraphDatabase
+import yaml
 
 
-def run_query_and_export_to_csv(uri, user, password, query, csv_path):
+def run_query_and_export_to_csv(uri: str, user: str, password: str, query: str, csv_path: str) -> None:
     driver = GraphDatabase.driver(uri, auth=(user, password))
 
     with driver.session() as session:
+        # Query IYP
         result = session.run(query)
 
         # Fetch records
@@ -76,6 +32,25 @@ def run_query_and_export_to_csv(uri, user, password, query, csv_path):
 
     driver.close()
 
-# Run the function
-run_query_and_export_to_csv(NEO4J_URI, USERNAME, PASSWORD, CYPHER_QUERY, CSV_FILE_PATH)
 
+if __name__ == '__main__':
+
+    # CLI interface
+    parser = argparse.ArgumentParser(
+            description="Execute given IYP query and save results in a file.")
+    parser.add_argument('configuration_file', help='YAML file providing all parameters.')
+    args = parser.parse_args()
+
+    # Open and read the configuration YAML file
+    with open(args.configuration_file, 'r') as file:
+        config = yaml.safe_load(file)
+
+    # Fetch all parameters
+    uri = config['iyp']['server']
+    username = config['iyp']['username']
+    password = config['iyp']['password']
+    query = config['query']
+    output = config['output_fname']
+
+    # Execute the query and save results
+    run_query_and_export_to_csv(uri, username, password, query, output)
