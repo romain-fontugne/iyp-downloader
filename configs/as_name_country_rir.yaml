@@ -1,0 +1,16 @@
+# Neo4j connection details
+iyp:
+  server: bolt://localhost:7687
+  username: neo4j
+  password: password
+
+# AS names, registered country, and RIR
+query: |
+  MATCH (a:AS)
+  OPTIONAL MATCH (a)-[:NAME {reference_org:'PeeringDB'}]->(pdbn:Name)
+  OPTIONAL MATCH (a)-[:NAME {reference_org:'BGP.Tools'}]->(btn:Name)
+  OPTIONAL MATCH (a)-[:NAME {reference_org:'RIPE NCC'}]->(ripen:Name)
+  OPTIONAL MATCH (a)-[cr:COUNTRY {reference_name: 'nro.delegated_stats'}]-(cc:Country)
+  RETURN DISTINCT a.asn AS asn, COALESCE(pdbn.name, btn.name, ripen.name) AS name, cc.country_code AS country_code, cr.registry as rir
+
+output_fname: caida_as_relationship_ipv4_japan.csv

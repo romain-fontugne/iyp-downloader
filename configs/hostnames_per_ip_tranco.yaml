@@ -1,0 +1,12 @@
+# Neo4j connection details
+iyp:
+  server: bolt://localhost:7687
+  username: neo4j
+  password: password
+
+# Count number of popular hostnames per IP (IPv4)
+query: |
+  MATCH (h:HostName)-[:RESOLVES_TO {reference_name:'openintel.tranco1m'}]-(i:IP {af:4})
+  RETURN i.ip, COUNT(DISTINCT h.name)
+
+output_fname: hostnames_per_ip_tranco.csv

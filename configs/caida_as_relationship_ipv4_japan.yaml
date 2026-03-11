@@ -1,0 +1,12 @@
+# Neo4j connection details
+iyp:
+  server: bolt://localhost:7687
+  username: neo4j
+  password: password
+
+# CAIDA AS relationship for IPv4
+query: |
+  MATCH (:Country {country_code:'JP'})-[:COUNTRY {reference_name:'nro.delegated_stats'}]-(as_a:AS)-[link:PEERS_WITH {reference_name:'caida.as_relationships_v4'}]->(as_b:AS)-[:COUNTRY {reference_name:'nro.delegated_stats'}]-(:Country {country_code:'JP'})
+  RETURN DISTINCT as_a.asn, as_b.asn, link.rel
+
+output_fname: caida_as_relationship_ipv4_japan.csv

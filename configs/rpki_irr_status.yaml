@@ -1,0 +1,15 @@
+# Neo4j connection details
+iyp:
+  server: bolt://localhost:7687
+  username: neo4j
+  password: password
+
+# RPKI and IRR status for routed prefixes
+query: |
+  MATCH (pfx:Prefix)-[crpki:CATEGORIZED {reference_name:'ihr.rov'}]-(tag_rpki:Tag)
+  WHERE tag_rpki.label STARTS WITH 'RPKI'
+  OPTIONAL MATCH (pfx:Prefix)-[cirr:CATEGORIZED {reference_name:'ihr.rov'}]-(tag_irr:Tag)
+  WHERE  tag_irr.label STARTS WITH 'IRR' AND crpki.originasn_id = cirr.originasn_id
+  RETURN pfx.prefix, crpki.originasn_id, tag_rpki.label, tag_irr.label
+
+output_fname: rpki_irr_status.csv
